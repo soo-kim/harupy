@@ -1,0 +1,20 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# IDE
+.idea/
+.vscode/
+sftp-config.json
+
+# OS files
+.DS_Store
