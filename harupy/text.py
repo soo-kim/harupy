@@ -17,6 +17,7 @@
 
 
 from functools import wraps
+from unicodedata import normalize
 
 
 class String(str):
@@ -213,4 +214,8 @@ class String(str):
 		bachim = self.get_last_bachim()
 
 		return self + josa_tuple[index + (0 if bachim and (bachim != 'ㄹ' or index) else 1)]
+
+	def normalize(self, form='NFKD'):
+		return normalize(form, self)
+
 
