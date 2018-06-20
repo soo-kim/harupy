@@ -16,5 +16,11 @@ ENV/
 .vscode/
 sftp-config.json
 
+# build and dist
+build/
+dist/
+*.egg-info/
+*.egg
+
 # OS files
 .DS_Store
