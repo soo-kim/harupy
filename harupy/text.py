@@ -114,6 +114,13 @@ class String(str):
 			i += 1
 		return reading
 
+	def isdecimal(self):
+		"""
+		한글로 읽은 숫자까지 결과에 반영
+		:return: bool
+		"""
+		return super(String, self).isdecimal()
+
 	def hangul_rate(self):
 		"""
 		전체 문자열에서 한글인 문자열의 백분율(%)을 반환

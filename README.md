@@ -24,7 +24,7 @@ pip install harupy
 String 클래스로 초기화 하며, josa 메소드를 통해 적절하게 변환된 조사를 붙일 수 있습니다.
 
 ```python
->>> from harulib.text import String
+>>> from harupy.text import String
 >>>
 >>> name1 = String('김수안무')
 >>> name2 = String('삼천갑자 동방삭')
