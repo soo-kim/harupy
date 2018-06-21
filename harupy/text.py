@@ -118,12 +118,47 @@ class String(str):
 			i += 1
 		return reading
 
-	def isdecimal(self):
+	def to_number(self):
+		if not self.NUMBER:
+			self.initialize_number()
+		number_str = self.__str__()
+
+		if number_str in ('영', '공'):
+			return 0
+
+		number_list = []
+		for n in number_str:
+			if n in self.NUMBER:
+				number_list.append(self.NUMBER.index(n))
+			elif n in self.NUMBER_10:
+				unit_10 = 10 ** self.NUMBER_10.index(n)
+				if len(number_list) and number_list[-1] < 10:
+					number_list[-1] *= unit_10
+				else:
+					number_list.append(unit_10)
+			elif n in self.NUMBER_10K:
+				under_10k = 0
+				while len(number_list) and number_list[-1] < 10000:
+					under_10k += number_list.pop()
+				number_list.append((under_10k or 1) * (10000 ** self.NUMBER_10K.index(n)))
+			else:
+				raise ValueError('%s is invalid. It must be numeric Hangul words.' % n)
+
+		return sum(number_list)
+
+	def isnumeric(self):
 		"""
 		한글로 읽은 숫자까지 결과에 반영
 		:return: bool
 		"""
-		return super(String, self).isdecimal()
+		result = super(String, self).isnumeric()
+		if not result:
+			if not self.NUMBER:
+				self.initialize_number()
+			number_strings = self.NUMBER + self.NUMBER_10 + self.NUMBER_10K + ('영', '공')
+			if sum([0 if s in number_strings else 1 for s in self]) == 0:
+				return True
+		return result
 
 	def hangul_rate(self):
 		"""

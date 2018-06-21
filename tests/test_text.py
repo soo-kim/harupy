@@ -46,7 +46,23 @@ class TextTest(unittest.TestCase):
 		self.assertEqual(String('31').josa('으로'), '31로')
 
 	def test_to_hangul(self):
-		self.assertEqual(String(11231).to_hangul(), '만천이백삼십일')
+		self.assertEqual(String(11231).to_hangul(), '일만천이백삼십일')
+		self.assertEqual(String(1110000).to_hangul(), '백십일만')
+		self.assertEqual(String(1110000).to_hangul(True), '일백일십일만')
+
+	def test_to_number(self):
+		self.assertEqual(String('천이백십일억천백만').to_number(), 121111000000)
+		self.assertEqual(String('삼천이백십일억천백만오십칠').to_number(), 321111000057)
+		self.assertEqual(String('육경사천칠조오백오십만삼백일').to_number(), 64007000005500301)
+		self.assertEqual(String('만오천').to_number(), 15000)
+		self.assertEqual(String('일').to_number(), 1)
+		self.assertEqual(String('영').to_number(), 0)
+
+	def test_isnumeric(self):
+		self.assertEqual(String('영').isnumeric(), True)
+		self.assertEqual(String('천이백십일억천백만').isnumeric(), True)
+		self.assertEqual(String('천이백십일억천백만').isnumeric(), True)
+		self.assertEqual(String('one').isnumeric(), False)
 
 
 if __name__ == '__main__':
