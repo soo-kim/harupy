@@ -24,6 +24,7 @@ class String(str):
 	"""
 	기본 내장객체 str를 확장하여 한글 처리 로직이 추가된 문자열 오브젝트
 	"""
+	NUMBER = False
 
 	def __new__(cls, object):
 		return str.__new__(cls, object)
@@ -76,28 +77,30 @@ class String(str):
 
 		return wrapper
 
+	def initialize_number(self):
+		self.NUMBER = ('', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구')
+		self.NUMBER_10 = ('', '십', '백', '천')
+		self.NUMBER_10K = ('', '만', '억', '조', '경', '해', '자', '양', '구', '간', '정', '재', '극')
+
 	def to_hangul(self, read_one=False):
 		if not super(String, self).isdecimal():
 			raise ValueError('Value must be integer-like string.')
-		return self._read_number(read_one)
 
-	def _read_number(self, read_one):
-		number_string = ('', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구')
-		number_string_10 = ('', '십', '백', '천')
-		number_string_10k = ('', '만', '억', '조', '경', '해', '자', '양', '구', '간', '정', '재', '극')
+		if not self.NUMBER:
+			self.initialize_number()
 
-		number = self
+		number = self.__str__()
 
 		if number == '0':
 			return '영'
 		if number == '1':
-			return number_string[1]
+			return self.NUMBER[1]
 
 		def _read_under_10k(under_10k):
 			reading_10k = ''
 			for i in range(0, len(under_10k)):
-				reading_number = number_string[int(under_10k[-i-1])] if under_10k[-i-1] != '1' or i == 0 or read_one else ''
-				reading_10k = ((reading_number + number_string_10[i]) if under_10k[-i-1] != '0' else '') + reading_10k
+				reading_number = self.NUMBER[int(under_10k[-i-1])] if under_10k[-i-1] != '1' or i == 0 or read_one else ''
+				reading_10k = ((reading_number + self.NUMBER_10[i]) if under_10k[-i-1] != '0' else '') + reading_10k
 			return reading_10k
 
 		# 4문자씩 나눠 읽기
@@ -111,7 +114,7 @@ class String(str):
 				split = number
 				number = ''
 			prefix = _read_under_10k(split)
-			reading = (prefix if prefix != '일' or not number_string_10k[i] or read_one else '') + number_string_10k[i] + reading
+			reading = (prefix if prefix != '일' or not self.NUMBER_10K[i] or read_one else '') + self.NUMBER_10K[i] + reading
 			i += 1
 		return reading
 
