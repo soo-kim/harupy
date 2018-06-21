@@ -114,7 +114,7 @@ class String(str):
 				split = number
 				number = ''
 			prefix = _read_under_10k(split)
-			reading = (prefix if prefix != '일' or not self.NUMBER_10K[i] or read_one else '') + self.NUMBER_10K[i] + reading
+			reading = prefix + (self.NUMBER_10K[i] if prefix else '') + reading
 			i += 1
 		return reading
 
