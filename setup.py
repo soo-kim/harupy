@@ -3,12 +3,12 @@ from setuptools import setup, find_packages
 
 setup(
 	name='harupy',
-	version='1.1.0',
+	version='1.2',
 	description='Library for handling Korean Hangul',
 	author='Soo Kim',
 	author_email='sookim@outlook.jp',
 	url='https://github.com/soo-kim/harupy',
-	download_url='https://github.com/soo-kim/harupy/archive/1.1.tar.gz',
+	download_url='https://github.com/soo-kim/harupy/archive/1.2.tar.gz',
 	packages=find_packages(exclude=['tests']),
 	keywords=['korean', 'hangul', 'string'],
 	python_requires='>=3',
