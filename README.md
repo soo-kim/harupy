@@ -97,7 +97,7 @@ True
 ```python
 >>> list(String('하루파이').normalize())
 ['ᄒ', 'ᅡ', 'ᄅ', 'ᅮ', 'ᄑ', 'ᅡ', 'ᄋ', 'ᅵ']
-
+```
 
 ## Feedback
 
