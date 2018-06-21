@@ -43,7 +43,7 @@ pip install harupy
 
 올바른 방법은 아니라고 생각하지만, 사용상의 편의를 위해 속성값으로 조사를 직접 입력하는 것을 허용해두었습니다.
 
-이 방법을 사용하면 한글로 된 속성값을 자동으로 josa 메소드의 결과값으로 표시합니다.
+이 방법을 사용하면 한글로 된 속성값을 자동으로 `josa()` 메소드의 결과값으로 표시합니다.
 
 ```python
 >>> target = String('오솔길')
@@ -91,6 +91,13 @@ pip install harupy
 >>> String('사천오백만').isnumeric()
 True
 ```
+
+내장 모듈 `unicodedata`의 유니코드 정규화 메소드를 바로 호출할 수 있습니다.
+
+```python
+>>> list(String('하루파이').normalize())
+['ᄒ', 'ᅡ', 'ᄅ', 'ᅮ', 'ᄑ', 'ᅡ', 'ᄋ', 'ᅵ']
+
 
 ## Feedback
 
