@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='harupy',
-    version='1.2',
+    version=__import__('harupy').VERSION,
     description='Library for handling Korean Hangul',
     author='Soo Kim',
     author_email='sookim@outlook.jp',
