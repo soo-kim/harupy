@@ -8,7 +8,7 @@ setup(
     author='Soo Kim',
     author_email='sookim@outlook.jp',
     url='https://github.com/soo-kim/harupy',
-    download_url='https://github.com/soo-kim/harupy/archive/1.2.tar.gz',
+    download_url='https://github.com/soo-kim/harupy/archive/1.3.tar.gz',
     packages=find_packages(exclude=['tests']),
     keywords=['korean', 'hangul', 'string'],
     python_requires='>=3',
@@ -23,6 +23,7 @@ setup(
         'Programming Language :: Python :: 3.3',
         'Programming Language :: Python :: 3.4',
         'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6'
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7'
     ]
 )
