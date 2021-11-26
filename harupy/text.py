@@ -19,6 +19,8 @@
 from functools import wraps
 from unicodedata import normalize
 
+from .decorators import types
+
 
 class String(str):
     """
@@ -256,3 +258,31 @@ class String(str):
 
     def normalize(self, form='NFKD'):
         return normalize(form, self)
+
+
+@types(int, int, str, str)
+def stars(cnt, all=5, starred='★', blank='☆'):
+    """텍스트로 별 추가"""
+    return starred * cnt + blank * (all - cnt)
+
+
+def add_comma(num):
+    """숫자에 콤마 추가"""
+    if isinstance(num, str):
+        try:
+            if '.' in num:
+                num = float(num)
+            else:
+                num = int(num)
+        except:
+            raise ValueError
+    if not num:
+        return '0'
+    return '{:20,}'.format(num).strip()
+
+
+def list_to_concat_string(obj, delimiter=''):
+    """리스트 전부 펼쳐서 이어붙이기"""
+    if type(obj) is list:
+        return delimiter.join([list_to_concat_string(o, delimiter) for o in obj])
+    return str(obj)
