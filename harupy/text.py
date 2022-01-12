@@ -16,6 +16,9 @@
 # limitations under the License.
 
 
+import os
+import hashlib
+import random
 from functools import wraps
 from unicodedata import normalize
 
@@ -286,3 +289,33 @@ def list_to_concat_string(obj, delimiter=''):
     if type(obj) is list:
         return delimiter.join([list_to_concat_string(o, delimiter) for o in obj])
     return str(obj)
+
+
+def get_md5_hash(content, buffer=65536):
+    """텍스트를 md5 해싱해서 다이제스트 뽑기"""
+    # todo: InMemoryUploadedFile 이외에도 django.core.files.uploadedfile의 다른 클래스에 대한 대응 고려할 것.
+    hasher = hashlib.md5()
+    if content.__class__.__name__ is 'InMemoryUploadedFile':
+        content.open('rb')
+        for chunk in iter(lambda: content.read(buffer), b''):
+            hasher.update(chunk)
+    elif type(content) is str:
+        hasher.update(content.encode('utf-8'))
+    return hasher.hexdigest()
+
+
+def get_file_digest(filepath, buffer=65536):
+    """파일을 md5 해싱해서 다이제스트 뽑기"""
+    if not os.path.isfile(filepath):
+        return None
+    hasher = hashlib.md5()
+    with open(filepath, 'rb') as f:
+        for chunk in iter(lambda: f.read(buffer), b''):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+@types(int)
+def get_random_digit(n):
+    # random.randint(10**(n-1), 10**n - 1)
+    return ''.join(random.sample([chr(n) for n in range(48, 58)], n))
