@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import itertools
+
 
 def parametrized(dec):
     """데코레이터에 파라미터 입력하는 데코레이터"""
