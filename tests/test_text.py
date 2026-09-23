@@ -7,8 +7,8 @@ from harupy.text import String as TextString
 
 class PackageTest(unittest.TestCase):
     def test_version_and_public_api(self):
-        self.assertEqual(harupy.__version__, '2.0.0')
-        self.assertEqual(harupy.VERSION, '2.0.0')
+        self.assertEqual(harupy.__version__, '2.0.1')
+        self.assertEqual(harupy.VERSION, '2.0.1')
         self.assertIs(harupy.String, String)
         self.assertIs(TextString, String)
 
