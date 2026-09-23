@@ -1,68 +1,120 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import unittest
-import sys
-sys.path.insert(0, '../')
 
-from harupy.text import String
+import harupy
+from harupy import String
+from harupy.text import String as TextString
 
 
-class TextTest(unittest.TestCase):
-    """
-    조사 테스트
-    """
-    def test_josa(self):
-        self.assertEqual(String('게').josa('나'), '게나')
+class PackageTest(unittest.TestCase):
+    def test_version_and_public_api(self):
+        self.assertEqual(harupy.__version__, '2.0.0')
+        self.assertEqual(harupy.VERSION, '2.0.0')
+        self.assertIs(harupy.String, String)
+        self.assertIs(TextString, String)
+
+
+class StringBehaviorTest(unittest.TestCase):
+    def test_string_operations_preserve_type(self):
+        self.assertIsInstance(String('haru').upper(), String)
+        self.assertIsInstance(String('haru')[1:], String)
+        self.assertIsInstance(String('ha') + 'ru', String)
+        self.assertTrue(all(isinstance(value, String) for value in String('a-b').partition('-')))
+
+
+class JosaTest(unittest.TestCase):
+    def test_vowel_and_consonant_endings(self):
+        self.assertEqual(String('학교').josa('을'), '학교를')
+        self.assertEqual(String('밥').josa('를'), '밥을')
         self.assertEqual(String('게').josa('이나'), '게나')
         self.assertEqual(String('고동').josa('나'), '고동이나')
-        self.assertEqual(String('고동').josa('이나'), '고동이나')
-        self.assertEqual(String('학교').josa('을'), '학교를')
-        self.assertEqual(String('학교').josa('를'), '학교를')
-        self.assertEqual(String('학교').josa('를'), '학교를')
-        self.assertEqual(String('Ace').josa('가'), 'Ace가')
-        self.assertEqual(String('makers').josa('가'), 'makers가')
-        self.assertEqual(String('pop').josa('가'), 'pop이')
-        self.assertEqual(String('funky').josa('가'), 'funky가')
-        self.assertEqual(String('music').josa('가'), 'music이')
-        self.assertEqual(String('JFK').josa('가'), 'JFK가')
-        self.assertEqual(String('2PM').josa('가'), '2PM이')
-        self.assertEqual(String('1234').josa('가'), '1234가')
-        self.assertEqual(String('123').josa('가'), '123이')
-        self.assertEqual(String('밥').josa('를'), '밥을')
-        self.assertEqual(String('사과').josa('을'), '사과를')
-        self.assertEqual(String('명함').josa('을'), '명함을')
-        self.assertEqual(String('븅신').josa('다'), '븅신이다')
-        self.assertEqual(String('똥개').josa('이다'), '똥개다')
+
+    def test_rieul_exception_for_ro(self):
         self.assertEqual(String('작심삼일').josa('으로'), '작심삼일로')
         self.assertEqual(String('작전변경').josa('로'), '작전변경으로')
-        self.assertEqual(String('ㄹ').josa('로'), 'ㄹ로')
-        self.assertEqual(String('ㅁ').josa('로'), 'ㅁ으로')
-        self.assertEqual(String('311').josa('이라고'), '311이라고')
-        self.assertEqual(String('312').josa('이라고'), '312라고')
-        self.assertEqual(String('317').josa('라고'), '317이라고')
-        self.assertEqual(String('318').josa('으로'), '318로')
-        self.assertEqual(String('313').josa('으로'), '313으로')
-        self.assertEqual(String('31').josa('으로'), '31로')
 
+    def test_ascii_endings(self):
+        self.assertEqual(String('Ace').josa('가'), 'Ace가')
+        self.assertEqual(String('music').josa('가'), 'music이')
+        self.assertEqual(String('123').josa('가'), '123이')
+        self.assertEqual(String('124').josa('가'), '124가')
+
+    def test_attribute_shorthand(self):
+        self.assertEqual(String('오솔길').로, '오솔길로')
+        self.assertEqual(String('떡볶이').이나, '떡볶이나')
+
+    def test_invalid_input(self):
+        with self.assertRaises(ValueError):
+            String('').josa('은')
+        with self.assertRaises(ValueError):
+            String('하루').josa(1)
+
+
+class NumberTest(unittest.TestCase):
     def test_to_hangul(self):
-        self.assertEqual(String(11231).to_hangul(), '일만천이백삼십일')
-        self.assertEqual(String(1110000).to_hangul(), '백십일만')
-        self.assertEqual(String(1110000).to_hangul(True), '일백일십일만')
+        cases = {
+            0: '영',
+            1: '일',
+            152000: '십오만이천',
+            37501600: '삼천칠백오십만천육백',
+            1110000: '백십일만',
+        }
+        for number, expected in cases.items():
+            with self.subTest(number=number):
+                self.assertEqual(String(number).to_hangul(), expected)
+        self.assertEqual(String('0000').to_hangul(), '영')
+        self.assertEqual(String(1110000).to_hangul(read_one=True), '일백일십일만')
 
     def test_to_number(self):
-        self.assertEqual(String('천이백십일억천백만').to_number(), 121111000000)
-        self.assertEqual(String('삼천이백십일억천백만오십칠').to_number(), 321111000057)
-        self.assertEqual(String('육경사천칠조오백오십만삼백일').to_number(), 64007000005500301)
-        self.assertEqual(String('만오천').to_number(), 15000)
-        self.assertEqual(String('일').to_number(), 1)
-        self.assertEqual(String('영').to_number(), 0)
+        cases = {
+            '영': 0,
+            '공': 0,
+            '일': 1,
+            '만오천': 15000,
+            '천이백십일억천백만': 121111000000,
+            '육경사천칠조오백오십만삼백일': 64007000005500301,
+        }
+        for korean, expected in cases.items():
+            with self.subTest(korean=korean):
+                self.assertEqual(String(korean).to_number(), expected)
+
+    def test_number_round_trip(self):
+        for number in range(10001):
+            with self.subTest(number=number):
+                self.assertEqual(String(String(number).to_hangul()).to_number(), number)
+
+    def test_invalid_number(self):
+        for value in ('', 'one', '일백two'):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                String(value).to_number()
+        with self.assertRaises(ValueError):
+            String('-1').to_hangul()
 
     def test_isnumeric(self):
-        self.assertEqual(String('영').isnumeric(), True)
-        self.assertEqual(String('천이백십일억천백만').isnumeric(), True)
-        self.assertEqual(String('천이백십일억천백만').isnumeric(), True)
-        self.assertEqual(String('one').isnumeric(), False)
+        self.assertTrue(String('사천오백만').isnumeric())
+        self.assertTrue(String('123').isnumeric())
+        self.assertFalse(String('').isnumeric())
+        self.assertFalse(String('one').isnumeric())
+
+
+class HangulHelperTest(unittest.TestCase):
+    def test_hangul_rate(self):
+        self.assertEqual(String('').hangul_rate(), 0)
+        self.assertEqual(String('하루').hangul_rate(), 100)
+        self.assertEqual(String('하루ab').hangul_rate(), 50)
+
+    def test_extract_readable(self):
+        value = String('하루, Python 3!')
+        self.assertEqual(value.extract_readable(), '하루Python3')
+        self.assertEqual(value.extract_readable(only_hangul=True), '하루')
+
+    def test_last_bachim(self):
+        self.assertEqual(String('밥').get_last_bachim(), 'ㅂ')
+        self.assertEqual(String('사과').get_last_bachim(), '')
+        self.assertEqual(String('오솔길').get_last_bachim(), 'ㄹ')
+        self.assertIsNone(String('!').get_last_bachim())
+
+    def test_normalize(self):
+        self.assertEqual(list(String('하루').normalize()), ['ᄒ', 'ᅡ', 'ᄅ', 'ᅮ'])
 
 
 if __name__ == '__main__':

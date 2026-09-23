@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "harupy"
+version = "2.0.0"
+description = "Small, dependency-free helpers for Korean text"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "Apache-2.0"
+authors = [
+    { name = "Soo Kim", email = "sookim@outlook.jp" },
+]
+keywords = ["korean", "hangul", "josa", "string"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Natural Language :: Korean",
+    "Programming Language :: Python :: 3",
+]
+
+[project.urls]
+Homepage = "https://github.com/soo-kim/harupy"
+Repository = "https://github.com/soo-kim/harupy"
+Issues = "https://github.com/soo-kim/harupy/issues"
+
+[tool.setuptools.packages.find]
+include = ["harupy*"]

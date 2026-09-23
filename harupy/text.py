@@ -1,321 +1,218 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Korean text helpers."""
 
-# Copyright 2018 Soo Kim.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-
-import os
-import hashlib
-import random
 from functools import wraps
 from unicodedata import normalize
 
-from .decorators import types
+
+_DIGITS = ('', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구')
+_SMALL_UNITS = ('', '십', '백', '천')
+_LARGE_UNITS = ('', '만', '억', '조', '경', '해', '자', '양', '구', '간', '정', '재', '극')
+_NUMBER_WORDS = frozenset(_DIGITS[1:] + _SMALL_UNITS[1:] + _LARGE_UNITS[1:] + ('영', '공'))
+
+_JONGSEONG = (
+    '', 'ㄱ', 'ㄲ', 'ㄳ', 'ㄴ', 'ㄵ', 'ㄶ', 'ㄷ', 'ㄹ', 'ㄺ', 'ㄻ', 'ㄼ', 'ㄽ', 'ㄾ',
+    'ㄿ', 'ㅀ', 'ㅁ', 'ㅂ', 'ㅄ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+)
+
+_JOSA = ('으로', '로', '이', '가', '은', '는', '을', '를', '과', '와', '아', '야')
 
 
 class String(str):
-    """
-    기본 내장객체 str를 확장하여 한글 처리 로직이 추가된 문자열 오브젝트
-    """
-    NUMBER = False
+    """A :class:`str` subclass with helpers for Korean text."""
 
-    def __new__(cls, object):
-        return str.__new__(cls, object)
+    def __new__(cls, value):
+        return super().__new__(cls, value)
 
     def __add__(self, other):
-        return String(super(String, self).__add__(other))
+        return String(super().__add__(other))
 
     def __radd__(self, other):
         return String(other.__add__(self))
 
     def __mul__(self, other):
-        return String(super(String, self).__mul__(other))
+        return String(super().__mul__(other))
 
     def __rmul__(self, other):
-        return String(super(String, self).__rmul__(other))
+        return String(super().__rmul__(other))
 
     def __getitem__(self, item):
-        return String(super(String, self).__getitem__(item))
+        return String(super().__getitem__(item))
 
     def __iter__(self):
-        for s in self.__str__():
-            yield String(s)
+        for character in self.__str__():
+            yield String(character)
 
-    def __getattribute__(self, item):
-        if 44031 < ord(item[0]) < 55204:
-            if String(item).hangul_rate() == 100:
-                return self.josa(item)
-        rtn = super(String, self).__getattribute__(item)
-        if rtn.__class__.__name__ in ('method', 'builtin_function_or_method'):
-            return self.string_object_decorator(rtn)
-        else:
-            return rtn
+    def __getattribute__(self, name):
+        # ``String('오솔길').로`` is shorthand for ``String('오솔길').josa('로')``.
+        if name and all('\uac00' <= character <= '\ud7a3' for character in name):
+            return self.josa(name)
+
+        attribute = super().__getattribute__(name)
+        if attribute.__class__.__name__ in ('method', 'builtin_function_or_method'):
+            return self._string_result(attribute)
+        return attribute
 
     @staticmethod
-    def string_object_decorator(func):
-        """
-        String 객체의 각 메소드에서 리턴 데이터를 다시 String 객체로 변환하는 데코레이터
-        """
-        @wraps(func)
+    def _string_result(function):
+        """Keep string results chainable as ``String`` instances."""
+
+        @wraps(function)
         def wrapper(*args, **kwargs):
-            result = func(*args, **kwargs)
+            result = function(*args, **kwargs)
             if type(result) is str:
                 return String(result)
-            elif type(result) is tuple:
-                return tuple([String(s) for s in result])
-            elif type(result) is list:
-                return [String(s) for s in result]
-            else:
-                return result
+            if type(result) is tuple:
+                return tuple(String(value) if type(value) is str else value for value in result)
+            if type(result) is list:
+                return [String(value) if type(value) is str else value for value in result]
+            return result
 
         return wrapper
 
-    def initialize_number(self):
-        self.NUMBER = ('', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구')
-        self.NUMBER_10 = ('', '십', '백', '천')
-        self.NUMBER_10K = ('', '만', '억', '조', '경', '해', '자', '양', '구', '간', '정', '재', '극')
-
     def to_hangul(self, read_one=False):
-        if not super(String, self).isdecimal():
-            raise ValueError('Value must be integer-like string.')
+        """Return a decimal integer string written with Korean number words."""
 
-        if not self.NUMBER:
-            self.initialize_number()
+        if not super().isdecimal():
+            raise ValueError('Value must be an integer-like string.')
 
-        number = self.__str__()
-
+        number = self.__str__().lstrip('0') or '0'
         if number == '0':
-            return '영'
+            return String('영')
         if number == '1':
-            return self.NUMBER[1]
+            return String(_DIGITS[1])
 
-        def _read_under_10k(under_10k):
-            reading_10k = ''
-            for i in range(0, len(under_10k)):
-                reading_number = self.NUMBER[int(under_10k[-i-1])] if under_10k[-i-1] != '1' or i == 0 or read_one else ''
-                reading_10k = ((reading_number + self.NUMBER_10[i]) if under_10k[-i-1] != '0' else '') + reading_10k
-            return reading_10k
+        chunks = (len(number) + 3) // 4
+        if chunks > len(_LARGE_UNITS):
+            raise ValueError('Value is too large to read with the supported Korean units.')
 
-        # 4문자씩 나눠 읽기
-        i = 0
+        def read_under_10k(value):
+            reading = ''
+            for position, digit in enumerate(reversed(value)):
+                if digit == '0':
+                    continue
+                spoken_digit = _DIGITS[int(digit)] if digit != '1' or position == 0 or read_one else ''
+                reading = spoken_digit + _SMALL_UNITS[position] + reading
+            return reading
+
         reading = ''
+        unit_index = 0
         while number:
-            if len(number) > 4:
-                split = number[-4:]
-                number = number[:-4]
-            else:
-                split = number
-                number = ''
-            prefix = _read_under_10k(split)
-            reading = prefix + (self.NUMBER_10K[i] if prefix else '') + reading
-            i += 1
-        return reading
+            number, chunk = number[:-4], number[-4:]
+            prefix = read_under_10k(chunk)
+            if prefix:
+                reading = prefix + _LARGE_UNITS[unit_index] + reading
+            unit_index += 1
+        return String(reading)
 
     def to_number(self):
-        if not self.NUMBER:
-            self.initialize_number()
-        number_str = self.__str__()
+        """Convert Korean number words to an integer."""
 
-        if number_str in ('영', '공'):
+        number_string = self.__str__()
+        if number_string in ('영', '공'):
             return 0
+        if not number_string:
+            raise ValueError('Value must not be empty.')
 
-        number_list = []
-        for n in number_str:
-            if n in self.NUMBER:
-                number_list.append(self.NUMBER.index(n))
-            elif n in self.NUMBER_10:
-                unit_10 = 10 ** self.NUMBER_10.index(n)
-                if len(number_list) and number_list[-1] < 10:
-                    number_list[-1] *= unit_10
+        numbers = []
+        for character in number_string:
+            if character in _DIGITS:
+                numbers.append(_DIGITS.index(character))
+            elif character in _SMALL_UNITS:
+                unit = 10 ** _SMALL_UNITS.index(character)
+                if numbers and numbers[-1] < 10:
+                    numbers[-1] *= unit
                 else:
-                    number_list.append(unit_10)
-            elif n in self.NUMBER_10K:
+                    numbers.append(unit)
+            elif character in _LARGE_UNITS:
                 under_10k = 0
-                while len(number_list) and number_list[-1] < 10000:
-                    under_10k += number_list.pop()
-                number_list.append((under_10k or 1) * (10000 ** self.NUMBER_10K.index(n)))
+                while numbers and numbers[-1] < 10000:
+                    under_10k += numbers.pop()
+                numbers.append((under_10k or 1) * (10000 ** _LARGE_UNITS.index(character)))
             else:
-                raise ValueError('%s is invalid. It must be numeric Hangul words.' % n)
-
-        return sum(number_list)
+                raise ValueError(f'{character} is invalid. It must be a Korean number word.')
+        return sum(numbers)
 
     def isnumeric(self):
-        """
-        한글로 읽은 숫자까지 결과에 반영
-        :return: bool
-        """
-        result = super(String, self).isnumeric()
-        if not result:
-            if not self.NUMBER:
-                self.initialize_number()
-            number_strings = self.NUMBER + self.NUMBER_10 + self.NUMBER_10K + ('영', '공')
-            if sum([0 if s in number_strings else 1 for s in self]) == 0:
-                return True
-        return result
+        """Also recognize numbers written with Korean number words."""
+
+        return super().isnumeric() or (bool(self) and all(character in _NUMBER_WORDS for character in self))
 
     def hangul_rate(self):
-        """
-        전체 문자열에서 한글인 문자열의 백분율(%)을 반환
-        :return: int
-        """
-        total = len(self)
-        hangul_count = 0
-        for i in range(total):
-            code_num = ord(self[i])
-            if 44031 < code_num < 55204 or 12592 < code_num < 12644:
-                hangul_count += 100
-        return int(hangul_count / total)
+        """Return the percentage of Hangul characters in the string."""
+
+        if not self:
+            return 0
+        hangul_count = sum(
+            1 for character in self
+            if '\uac00' <= character <= '\ud7a3' or '\u3131' <= character <= '\u3163'
+        )
+        return int(hangul_count * 100 / len(self))
 
     def extract_readable(self, only_hangul=False):
+        """Keep characters whose pronunciation is understood by ``get_last_bachim``."""
+
         readable = ''
-        for s in self:
-            code_num = ord(s)
-            if 44031 < code_num < 55204:
-                readable += s
-            elif only_hangul is False and (12592 < code_num < 12623 or 12622 < code_num < 12644 or
-                                           96 < code_num < 123 or 64 < code_num < 91 or 47 < code_num < 58):
-                readable += s
-        return readable
+        for character in self:
+            if '\uac00' <= character <= '\ud7a3':
+                readable += character
+            elif only_hangul is False and (
+                '\u3131' <= character <= '\u3163' or character.isascii() and character.isalnum()
+            ):
+                readable += character
+        return String(readable)
 
     def get_last_bachim(self):
-        """
-        마지막 글자 또는 마지막 글자의 읽는 방법을 기준으로 받침을 반환함
-        받침이 없는 경우 빈 문자열('') 반환
-        단, 알파벳의 경우
-        받침을 알 수 없는 경우 None을 반환
-        """
+        """Return the final consonant used to choose a Korean postposition."""
+
         readable = self.extract_readable()
         if not readable:
             return None
-        code_num = ord(readable[-1])
 
-        if 47 < code_num < 58:
-            # 숫자
-            return (
-                'ㅇ', 'ㄹ', '', 'ㅁ', '', '', 'ㄱ', 'ㄹ', 'ㄹ', ''
-            )[code_num - 48]
-        elif 64 < code_num < 91:
-            # 알파벳 대문자
+        character = readable[-1]
+        if character.isascii() and character.isdigit():
+            return ('ㅇ', 'ㄹ', '', 'ㅁ', '', '', 'ㄱ', 'ㄹ', 'ㄹ', '')[int(character)]
+        if 'A' <= character <= 'Z':
             return (
                 '', '', '', '', '', '', '', '', '', '', '', 'ㄹ', 'ㅁ', 'ㄴ', '', '', '', 'ㄹ',
-                '', '', '', '', '', '', '', ''
-            )[code_num - 65]
-        elif 96 < code_num < 123:
-            # 알파벳 소문자
+                '', '', '', '', '', '', '', '',
+            )[ord(character) - ord('A')]
+        if 'a' <= character <= 'z':
             return (
                 '', 'ㅂ', 'ㄱ', '', '', '', 'ㄱ', '', '', '', 'ㄱ', 'ㄹ', 'ㅁ', 'ㄴ', '', 'ㅂ', '', '',
-                '', '', '', '', '', '', '', ''
-            )[code_num - 97]
-        elif 44031 < code_num < 55204:
-            # 한글
-            return (
-                'ㄹㅅ', 'ㄹㅌ', 'ㄹㅍ', 'ㄹㅎ', 'ㅁ', 'ㅂ', 'ㅂㅅ', 'ㅅ', 'ㅅㅅ', 'ㅇ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ',
-                'ㅍ', 'ㅎ', '', 'ㄱ', 'ㄱㄱ', 'ㄱㅅ', 'ㄴ', 'ㄴㅈ', 'ㄴㅎ', 'ㄷ', 'ㄹ', 'ㄹㄱ', 'ㄹㅁ', 'ㄹㅂ'
-            )[code_num % 28]
-        elif 12592 < code_num < 12623:
-            # 한글 자음
+                '', '', '', '', '', '', '', '',
+            )[ord(character) - ord('a')]
+        if '\uac00' <= character <= '\ud7a3':
+            return _JONGSEONG[(ord(character) - ord('가')) % 28]
+        if '\u3131' <= character <= '\u314e':
             return (
                 'ㄱ', 'ㄱ', 'ㅅ', 'ㄴ', 'ㅈ', 'ㅎ', 'ㄷ', 'ㄷ', 'ㄹ', 'ㄱ', 'ㅁ', 'ㅂ', 'ㅅ', 'ㅌ', 'ㅍ',
-                'ㅎ', 'ㅁ', 'ㅂ', 'ㅂ', 'ㅅ', 'ㅅ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'
-            )[code_num - 12593]
-        elif 12622 < code_num < 12644:
-            # 한글 모음
+                'ㅎ', 'ㅁ', 'ㅂ', 'ㅂ', 'ㅅ', 'ㅅ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅈ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ',
+            )[ord(character) - ord('ㄱ')]
+        if '\u314f' <= character <= '\u3163':
             return ''
+        return None
 
-    def josa(self, josa_str):
-        """
-        앞글자의 받침에 따라 변화하는 조사 붙이기
-        :param josa_str: 붙일 조사
-        :return: 적절한 조사를 붙인 문자열
-        """
-        if type(josa_str) not in (str, String):
-            raise ValueError('Josa must be string type.')
-        if self == '':
+    def josa(self, postposition):
+        """Append the appropriate Korean postposition for the last sound."""
+
+        if not isinstance(postposition, str):
+            raise ValueError('Josa must be a string.')
+        if not self:
             raise ValueError('String value must not be empty.')
 
-        josa_tuple = ('으로', '로', '이', '가', '은', '는', '을', '를', '과', '와', '아', '야')
+        if postposition not in _JOSA:
+            infix = '이' if self.get_last_bachim() else ''
+            return String(self + infix + postposition.lstrip('이'))
 
-        if josa_str not in josa_tuple:
-            # '이'로 시작하는 모든 조사 및 술어
-            # '이랑', '랑', '이여', '여', '이다', '다', '이고', '고', '이며', '며',
-            # '이라고', '라고', '이라며', '라며', '이라면', '라면',
-            # '이라는', '라는', '이라서', '라서', '이야말로', '야말로' 등등...
-            return self + ('', '이')[1 if self.get_last_bachim() else 0] + josa_str.lstrip('이')
-
-        index = (josa_tuple.index(josa_str) // 2) * 2
+        pair_index = (_JOSA.index(postposition) // 2) * 2
         bachim = self.get_last_bachim()
-
-        return self + josa_tuple[index + (0 if bachim and (bachim != 'ㄹ' or index) else 1)]
+        if pair_index == 0:
+            selected = 1 if not bachim or bachim == 'ㄹ' else 0
+        else:
+            selected = 0 if bachim else 1
+        return String(self + _JOSA[pair_index + selected])
 
     def normalize(self, form='NFKD'):
-        return normalize(form, self)
+        """Return the Unicode-normalized string."""
 
-
-@types(int, int, str, str)
-def stars(cnt, all=5, starred='★', blank='☆'):
-    """텍스트로 별 추가"""
-    return starred * cnt + blank * (all - cnt)
-
-
-def add_comma(num):
-    """숫자에 콤마 추가"""
-    if isinstance(num, str):
-        try:
-            if '.' in num:
-                num = float(num)
-            else:
-                num = int(num)
-        except:
-            raise ValueError
-    if not num:
-        return '0'
-    return '{:20,}'.format(num).strip()
-
-
-def list_to_concat_string(obj, delimiter=''):
-    """리스트 전부 펼쳐서 이어붙이기"""
-    if type(obj) is list:
-        return delimiter.join([list_to_concat_string(o, delimiter) for o in obj])
-    return str(obj)
-
-
-def get_md5_hash(content, buffer=65536):
-    """텍스트를 md5 해싱해서 다이제스트 뽑기"""
-    # todo: InMemoryUploadedFile 이외에도 django.core.files.uploadedfile의 다른 클래스에 대한 대응 고려할 것.
-    hasher = hashlib.md5()
-    if content.__class__.__name__ is 'InMemoryUploadedFile':
-        content.open('rb')
-        for chunk in iter(lambda: content.read(buffer), b''):
-            hasher.update(chunk)
-    elif type(content) is str:
-        hasher.update(content.encode('utf-8'))
-    return hasher.hexdigest()
-
-
-def get_file_digest(filepath, buffer=65536):
-    """파일을 md5 해싱해서 다이제스트 뽑기"""
-    if not os.path.isfile(filepath):
-        return None
-    hasher = hashlib.md5()
-    with open(filepath, 'rb') as f:
-        for chunk in iter(lambda: f.read(buffer), b''):
-            hasher.update(chunk)
-    return hasher.hexdigest()
-
-
-@types(int)
-def get_random_digit(n):
-    # random.randint(10**(n-1), 10**n - 1)
-    return ''.join(random.sample([chr(n) for n in range(48, 58)], n))
+        return String(normalize(form, self))
